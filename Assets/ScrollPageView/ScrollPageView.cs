@@ -5,15 +5,15 @@ using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
 
-public interface IScrollRect
+public interface IScrollPageView
 {
 	void Init(int cellCount);
-	void ScrollToIndex(int index, float delay, float duration);
+	void ScrollToIndex(int index, float duration);
 	void RefreshAll();
 	void ResetPos();
 	void GoNextCell();
 	void GoPreCell();
-	Action<int, ReuseScrollCell> OnRefresh { get; set; }
+	Action<int, ScrollPageViewCell> OnRefresh { get; set; }
 	Action<int> OnPageIndexChanged { get; set; }
 }
 
@@ -25,8 +25,8 @@ public interface IScrollRect
 /// 	  11.视需求决定 cellsize的是简单的自动获取还是同grid一样硬性配置(增加Spacing,cellSize自动获取)
 /// 	  9.page模式下对滚轮的支持 
 /// </summary>
-[RequireComponent(typeof(ReuseScrollRectEditor))]
-public class ReuseScrollRect : ScrollRect, IScrollRect
+[RequireComponent(typeof(ScrollPageViewEditor))]
+public class ScrollPageView : ScrollRect, IScrollPageView
 {
 	class ReusingData
 	{
@@ -40,23 +40,20 @@ public class ReuseScrollRect : ScrollRect, IScrollRect
 		Hide
 	}
 
-	private ReuseScrollRectEditor _editorValue = null;
-	public ReuseScrollRectEditor EditorValue
+	private ScrollPageViewEditor _editorValue = null;
+	public ScrollPageViewEditor EditorValue
 	{
 		get
 		{
 			if (_editorValue == null)
 			{
-				_editorValue = GetComponent<ReuseScrollRectEditor>();
+				_editorValue = GetComponent<ScrollPageViewEditor>();
 			}
 			return _editorValue;
 		}
 	}
 
-	//Debug模式
 	public bool DebugMode { get { return EditorValue._debugMode; } }
-
-	//分页模式
 	public bool PageMode { get { return EditorValue._pageMode; } }
 
 	//用于分页定位和动画
@@ -64,7 +61,6 @@ public class ReuseScrollRect : ScrollRect, IScrollRect
 	private int _pageCount;
 
 	public RectTransform ScrollTargetPos { get { return EditorValue._scrollTargetPos; } }
-	public float PosTweenDelay { get { return EditorValue._posTweenDelay; } }
 	public float PosTweenDuration { get { return EditorValue._posTweenDuration; } }
 	public Button PrePageBtn { get { return EditorValue._prePageBtn; } }
 	public Button NextPageBtn { get { return EditorValue._nextPageBtn; } }
@@ -80,8 +76,8 @@ public class ReuseScrollRect : ScrollRect, IScrollRect
 	public Vector2 Spacing { get { return EditorValue._spacing; } set { EditorValue._spacing = value; } }
 
 	//cell更新回调
-	private Action<int, ReuseScrollCell> _onRefresh;
-	public Action<int, ReuseScrollCell> OnRefresh
+	private Action<int, ScrollPageViewCell> _onRefresh;
+	public Action<int, ScrollPageViewCell> OnRefresh
 	{
 		get { return _onRefresh; }
 		set { _onRefresh = value; }
@@ -95,8 +91,8 @@ public class ReuseScrollRect : ScrollRect, IScrollRect
 		set { _onPageIndexChanged = value; }
 	}
 
-	public List<ReuseScrollCell> _cells = new List<ReuseScrollCell>();
-	public List<ReuseScrollCell> _cellCaches = new List<ReuseScrollCell>();
+	public List<ScrollPageViewCell> _cells = new List<ScrollPageViewCell>();
+	public List<ScrollPageViewCell> _cellCaches = new List<ScrollPageViewCell>();
 	//记录每个cell的状态，
 	private List<ReusingData> _indexList = new List<ReusingData>();
 
@@ -133,11 +129,13 @@ public class ReuseScrollRect : ScrollRect, IScrollRect
 
 		if (NextPageBtn != null)
 		{
+			NextPageBtn.onClick.RemoveAllListeners();
 			NextPageBtn.onClick.AddListener(GoNextCell);
 		}
 
 		if (PrePageBtn != null)
 		{
+			PrePageBtn.onClick.RemoveAllListeners();
 			PrePageBtn.onClick.AddListener(GoPreCell);
 		}
 
@@ -210,12 +208,12 @@ public class ReuseScrollRect : ScrollRect, IScrollRect
 	/// </summary>
 	public void RefreshAll()
 	{
+		if(_onRefresh == null)
+			return;
+
 		foreach (var cell in _cells)
 		{
-			if (_onRefresh != null)
-			{
-				_onRefresh(cell._index, cell);
-			}
+			_onRefresh(cell._index, cell);
 		}
 	}
 
@@ -252,20 +250,20 @@ public class ReuseScrollRect : ScrollRect, IScrollRect
 	/// <param name="pageIndex"></param>
 	public void ScrollToPage(int pageIndex)
 	{
-		ScrollToPage(pageIndex, PosTweenDelay, PosTweenDuration);
+		ScrollToPage(pageIndex, PosTweenDuration);
 	}
 
-	public void ScrollToPage(int pageIndex, float delay, float duration)
+	public void ScrollToPage(int pageIndex, float duration)
 	{
 		pageIndex = Mathf.Clamp(pageIndex, 0, _pageCount - 1);
 
 		if (vertical)
 		{
-			ScrollToIndex(pageIndex * ColumnCount, delay, duration);
+			ScrollToIndex(pageIndex * ColumnCount, duration);
 		}
 		else
 		{
-			ScrollToIndex(pageIndex * RowCount, delay, duration);
+			ScrollToIndex(pageIndex * RowCount, duration);
 		}
 
 		if (_preNearestPageIndex != pageIndex)
@@ -278,7 +276,6 @@ public class ReuseScrollRect : ScrollRect, IScrollRect
 
 		_preNearestPageIndex = pageIndex;
 		UpdateRollBtn(pageIndex);
-
 	}
 
 	/// <summary>
@@ -287,7 +284,7 @@ public class ReuseScrollRect : ScrollRect, IScrollRect
 	/// <param name="index"></param>
 	public void ScrollToIndex(int index)
 	{
-		ScrollToIndex(index, PosTweenDelay, PosTweenDuration);
+		ScrollToIndex(index, PosTweenDuration);
 	}
 
 	/// <summary>
@@ -296,7 +293,7 @@ public class ReuseScrollRect : ScrollRect, IScrollRect
 	/// <param name="realIndex"></param>
 	/// <param name="delay"></param>
 	/// <param name="duration"></param>
-	public void ScrollToIndex(int index, float delay, float duration)
+	public void ScrollToIndex(int index, float duration)
 	{
 		index = Mathf.Clamp(index, 0, CellCount - 1);
 
@@ -376,9 +373,10 @@ public class ReuseScrollRect : ScrollRect, IScrollRect
 			m_rebuild = false;
 			SetCellDisplay();
 		}
-		else if (isPlaying)
+		else
+		if (isPlaying)
 		{
-			if(vertical)
+			if (vertical)
 			{
 				content.anchoredPosition = new Vector2(content.anchoredPosition.x, Mathf.Lerp(from.y, to.y, totalTime / duration));
 			}
@@ -387,7 +385,7 @@ public class ReuseScrollRect : ScrollRect, IScrollRect
 				content.anchoredPosition = new Vector2(Mathf.Lerp(from.x, to.x, totalTime / duration), content.anchoredPosition.y);
 			}
 			SetCellDisplay();
-			if(totalTime >= duration)
+			if (totalTime >= duration)
 			{
 				content.anchoredPosition = to;
 				isPlaying = false;
@@ -399,6 +397,10 @@ public class ReuseScrollRect : ScrollRect, IScrollRect
 		}
 	}
 
+	/// <summary>
+	/// scrollview触发显示会rebuild
+	/// </summary>
+	/// <param name="executing"></param>
 	public override void Rebuild(CanvasUpdate executing)
 	{
 		base.Rebuild(executing);
@@ -436,9 +438,9 @@ public class ReuseScrollRect : ScrollRect, IScrollRect
 	{
 		if (PageMode)
 		{
-			if(!isPlaying)
+			if (!isPlaying)
 			{
-				if(data.scrollDelta.y < 0)
+				if (data.scrollDelta.y < 0)
 					GoNextCell();
 				else
 					GoPreCell();
@@ -653,7 +655,7 @@ public class ReuseScrollRect : ScrollRect, IScrollRect
 	/// <param name="data"></param>
 	void ShowCell(int index, bool isRebuild)
 	{
-		ReuseScrollCell cellTmp = GetCell();
+		ScrollPageViewCell cellTmp = GetCell();
 
 		cellTmp.transform.SetParent(content);
 		cellTmp.transform.localScale = Vector3.one;
@@ -682,14 +684,14 @@ public class ReuseScrollRect : ScrollRect, IScrollRect
 	/// <param name="isRebuild"></param>
 	void HideCell(int index, bool isRebuild)
 	{
-		ReuseScrollCell cellTmp = _cells.Find(i => i._index == index);
+		ScrollPageViewCell cellTmp = _cells.Find(i => i._index == index);
 
 		if (cellTmp == null)
 			return;
 
 		if (!isRebuild)
 		{
-			cellTmp.gameObject.SetActive(false);
+			// cellTmp.gameObject.SetActive(false);
 			cellTmp.Hide();
 		}
 
@@ -701,9 +703,9 @@ public class ReuseScrollRect : ScrollRect, IScrollRect
 	/// 从缓存中获取cell
 	/// </summary>
 	/// <returns></returns>
-	ReuseScrollCell GetCell()
+	ScrollPageViewCell GetCell()
 	{
-		ReuseScrollCell result = null;
+		ScrollPageViewCell result = null;
 
 		if (_cellCaches.Count > 0)
 		{
@@ -715,7 +717,7 @@ public class ReuseScrollRect : ScrollRect, IScrollRect
 		{
 			//新建
 			var go = Instantiate(CellSource) as GameObject;
-			result = go.GetComponent<ReuseScrollCell>();
+			result = go.GetComponent<ScrollPageViewCell>();
 		}
 
 		return result;

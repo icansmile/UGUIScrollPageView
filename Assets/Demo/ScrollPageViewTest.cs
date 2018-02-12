@@ -12,9 +12,9 @@ public class ScrollCellTest
 	}
 }
 
-public class ReuseScrollTest : MonoBehaviour
+public class ScrollPageViewTest : MonoBehaviour
 {
-	public ReuseScrollRect scrollRect;
+	public ScrollPageView scrollRect;
 	// Use this for initialization
 	void Start()
 	{

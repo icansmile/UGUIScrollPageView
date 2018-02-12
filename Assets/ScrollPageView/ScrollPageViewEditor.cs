@@ -3,8 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
-[RequireComponent(typeof(ReuseScrollRect))]
-public class ReuseScrollRectEditor : MonoBehaviour 
+[RequireComponent(typeof(ScrollPageView))]
+public class ScrollPageViewEditor : MonoBehaviour 
 {
     [Header("=====Init=====")]
     public GameObject _cellSource;
@@ -18,7 +18,6 @@ public class ReuseScrollRectEditor : MonoBehaviour
     [Header("=====PageMode=====")]
     public bool _pageMode = false;
     public RectTransform _scrollTargetPos;
-    public float _posTweenDelay = 0f;
 	public float _posTweenDuration = 0.3f;
     public Button _prePageBtn;
     public Button _nextPageBtn;

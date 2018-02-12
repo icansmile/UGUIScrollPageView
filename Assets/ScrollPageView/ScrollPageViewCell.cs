@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public abstract class ReuseScrollCell : MonoBehaviour
+public abstract class ScrollPageViewCell : MonoBehaviour
 {
 	public int _index;
 
